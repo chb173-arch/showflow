@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, Scissors } from 'lucide-react';
+import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, X } from 'lucide-react';
 
 /**
  * SHOWFLOW SAAS (FREE TIER)
  * * DESIGN NOTES:
  * - HOME/DASHBOARD: Split into Preview (Left) and Program (Right).
  * - Workflow: Select Source -> Preview -> GO -> Live.
- * - Layout: Forced side-by-side responsive scaling.
+ * - Monetization: "Free" watermark remains, but Image Upload is unlocked.
  */
 
 const App = () => {
@@ -17,9 +17,6 @@ const App = () => {
   const [previewSourceId, setPreviewSourceId] = useState(null); // The source in the Left window
   const [programSourceId, setProgramSourceId] = useState(null); // The source in the Right window (LIVE)
   const [standbyImage, setStandbyImage] = useState(null); // Data URL for custom image
-  
-  // Crop State for hiding Chrome Banner
-  const [isCropped, setIsCropped] = useState(false);
   
   const [projectorWindow, setProjectorWindow] = useState(null);
   const [projectorStatus, setProjectorStatus] = useState('disconnected');
@@ -96,7 +93,6 @@ const App = () => {
     // Update Local Program Monitor
     if (programRef.current) {
       programRef.current.srcObject = source ? source.stream : null;
-      applyCropStyle(programRef.current, isCropped);
     }
 
     // Update Remote Projector Video
@@ -107,8 +103,6 @@ const App = () => {
       if (remoteVideo) {
         remoteVideo.srcObject = source ? source.stream : null;
         remoteVideo.classList.remove('hidden');
-        // Ensure crop state is maintained on switch
-        applyCropToWindow(projectorWindow, isCropped);
         
         if (remoteImg) remoteImg.style.display = 'none'; // Hide image when video is live
       }
@@ -130,34 +124,6 @@ const App = () => {
       // Show fallback image
       if (remoteImg) remoteImg.style.display = 'block';
     }
-  };
-
-  // --- CROP / OVERSCAN LOGIC ---
-  const toggleCrop = () => {
-    const newState = !isCropped;
-    setIsCropped(newState);
-    
-    // Apply to Local
-    if (programRef.current) {
-        applyCropStyle(programRef.current, newState);
-    }
-
-    // Apply to Remote
-    if (projectorWindow && !projectorWindow.closed) {
-        applyCropToWindow(projectorWindow, newState);
-    }
-  };
-
-  const applyCropToWindow = (win, shouldCrop) => {
-      const vid = win.document.getElementById('projector-video');
-      if (vid) applyCropStyle(vid, shouldCrop);
-  };
-
-  const applyCropStyle = (element, shouldCrop) => {
-      // Scale up 5% and anchor to bottom to push the top (banner) off screen
-      element.style.transform = shouldCrop ? 'scale(1.05)' : 'none';
-      element.style.transformOrigin = 'center bottom';
-      element.style.transition = 'transform 0.3s ease';
   };
 
   // --- STANDBY IMAGE LOGIC ---
@@ -186,13 +152,12 @@ const App = () => {
       setProjectorWindow(win);
       setProjectorStatus('connected');
       
-      // Inject current standby image & crop state if exists
+      // Inject current standby image if exists
       win.onload = () => {
         if (standbyImage) {
            const remoteImg = win.document.getElementById('fallback-img');
            if (remoteImg) remoteImg.src = standbyImage;
         }
-        applyCropToWindow(win, isCropped);
       };
 
       const timer = setInterval(() => {
@@ -350,9 +315,10 @@ const App = () => {
                         )}
                         <button 
                             onClick={(e) => { e.stopPropagation(); removeSource(source.id); }}
-                            className="absolute top-1 left-1 p-1 bg-black/50 text-zinc-400 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-20"
+                            title="Remove Source"
                         >
-                            <Trash2 size={12} />
+                            <X size={14} />
                         </button>
                     </div>
                   </div>
@@ -431,19 +397,6 @@ const App = () => {
                     <p className="text-sm font-bold truncate">
                         {projectorStatus === 'connected' ? 'Display Connected' : 'No Projector'}
                     </p>
-                    
-                    {/* Overscan / Crop Toggle */}
-                    <button 
-                      onClick={toggleCrop}
-                      className={`absolute bottom-3 right-3 p-2 rounded-lg transition-colors border ${
-                        isCropped 
-                        ? 'bg-blue-600/20 text-blue-400 border-blue-600/50' 
-                        : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300'
-                      }`}
-                      title="Crop Top Banner (Overscan)"
-                    >
-                      <Scissors size={14} />
-                    </button>
                 </div>
 
                 <button 
