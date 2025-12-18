@@ -30,7 +30,7 @@ const App = () => {
 
   // --- PROJECTOR ROUTING ---
   useEffect(() => {
-    const handleHashChange = () => setIsProjector(window.location.hash === '#projector');
+    const handleHashChange = () => setIsProjector(window.location.hash === '#projector'); 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
