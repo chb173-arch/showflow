@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload } from 'lucide-react';
+import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, Scissors } from 'lucide-react';
 
 /**
  * SHOWFLOW SAAS (FREE TIER)
@@ -17,6 +17,9 @@ const App = () => {
   const [previewSourceId, setPreviewSourceId] = useState(null); // The source in the Left window
   const [programSourceId, setProgramSourceId] = useState(null); // The source in the Right window (LIVE)
   const [standbyImage, setStandbyImage] = useState(null); // Data URL for custom image
+  
+  // Crop State for hiding Chrome Banner
+  const [isCropped, setIsCropped] = useState(false);
   
   const [projectorWindow, setProjectorWindow] = useState(null);
   const [projectorStatus, setProjectorStatus] = useState('disconnected');
@@ -93,6 +96,7 @@ const App = () => {
     // Update Local Program Monitor
     if (programRef.current) {
       programRef.current.srcObject = source ? source.stream : null;
+      applyCropStyle(programRef.current, isCropped);
     }
 
     // Update Remote Projector Video
@@ -103,6 +107,9 @@ const App = () => {
       if (remoteVideo) {
         remoteVideo.srcObject = source ? source.stream : null;
         remoteVideo.classList.remove('hidden');
+        // Ensure crop state is maintained on switch
+        applyCropToWindow(projectorWindow, isCropped);
+        
         if (remoteImg) remoteImg.style.display = 'none'; // Hide image when video is live
       }
     }
@@ -123,6 +130,34 @@ const App = () => {
       // Show fallback image
       if (remoteImg) remoteImg.style.display = 'block';
     }
+  };
+
+  // --- CROP / OVERSCAN LOGIC ---
+  const toggleCrop = () => {
+    const newState = !isCropped;
+    setIsCropped(newState);
+    
+    // Apply to Local
+    if (programRef.current) {
+        applyCropStyle(programRef.current, newState);
+    }
+
+    // Apply to Remote
+    if (projectorWindow && !projectorWindow.closed) {
+        applyCropToWindow(projectorWindow, newState);
+    }
+  };
+
+  const applyCropToWindow = (win, shouldCrop) => {
+      const vid = win.document.getElementById('projector-video');
+      if (vid) applyCropStyle(vid, shouldCrop);
+  };
+
+  const applyCropStyle = (element, shouldCrop) => {
+      // Scale up 5% and anchor to bottom to push the top (banner) off screen
+      element.style.transform = shouldCrop ? 'scale(1.05)' : 'none';
+      element.style.transformOrigin = 'center bottom';
+      element.style.transition = 'transform 0.3s ease';
   };
 
   // --- STANDBY IMAGE LOGIC ---
@@ -151,12 +186,13 @@ const App = () => {
       setProjectorWindow(win);
       setProjectorStatus('connected');
       
-      // Inject current standby image if exists
+      // Inject current standby image & crop state if exists
       win.onload = () => {
         if (standbyImage) {
            const remoteImg = win.document.getElementById('fallback-img');
            if (remoteImg) remoteImg.src = standbyImage;
         }
+        applyCropToWindow(win, isCropped);
       };
 
       const timer = setInterval(() => {
@@ -181,7 +217,6 @@ const App = () => {
             id="fallback-img" 
             className="absolute inset-0 w-full h-full object-cover z-0" 
             alt=""
-            // Note: src is injected via DOM manipulation from main window
         />
         
         {/* Layer 0.5: Placeholder Icon (only if no image) */}
@@ -259,7 +294,6 @@ const App = () => {
           <div className="flex flex-col gap-4 h-full">
             
             {/* 1. Preview Monitor */}
-            {/* Green Border: #34A853 */}
             <div className="flex-1 bg-zinc-900 border-2 border-[#34A853] rounded-2xl overflow-hidden relative flex flex-col">
                <div className="absolute top-4 left-4 z-20 bg-green-600/90 text-white text-xs font-black px-3 py-1 rounded shadow-lg">
                   PREVIEW
@@ -322,7 +356,7 @@ const App = () => {
                   </div>
                 ))}
                 
-                {/* Add Source Button (Moved to Gallery) */}
+                {/* Add Source Placeholder in Gallery */}
                 <button 
                     onClick={addSource}
                     className="flex-shrink-0 w-24 bg-zinc-900/50 hover:bg-zinc-800 border-2 border-dashed border-zinc-800 hover:border-zinc-700 rounded-lg flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-zinc-400 transition-all"
@@ -362,14 +396,13 @@ const App = () => {
 
           </div>
 
-          {/* RIGHT COLUMN: LIVE PROGRAM */}
+          {/* RIGHT COLUMN: PROGRAM */}
           <div className="flex flex-col gap-4 h-full">
-            {/* Red Border: #B90000 */}
             <div className="flex-1 bg-black border-2 border-[#B90000] rounded-2xl overflow-hidden relative shadow-2xl flex flex-col">
                 <div className="absolute top-4 left-4 z-20 bg-red-600/90 text-white text-xs font-black px-3 py-1 rounded shadow-lg">
                     LIVE
                 </div>
-                <div className="flex-1 relative">
+                <div className="flex-1 relative overflow-hidden">
                     <video ref={programRef} autoPlay muted playsInline className="w-full h-full object-contain" />
                     
                     {/* Local Standby Image Preview if Video is Null */}
@@ -386,9 +419,9 @@ const App = () => {
                 </div>
             </div>
 
-            {/* Panic Control */}
+            {/* Panic & Output Status */}
             <div className="h-32 grid grid-cols-2 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-center">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-center relative group">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Output Status</h3>
                         <div className={`w-2 h-2 rounded-full ${projectorStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-zinc-700'}`} />
@@ -396,6 +429,19 @@ const App = () => {
                     <p className="text-sm font-bold truncate">
                         {projectorStatus === 'connected' ? 'External Display Connected' : 'No Projector Window'}
                     </p>
+                    
+                    {/* Overscan / Crop Toggle */}
+                    <button 
+                      onClick={toggleCrop}
+                      className={`absolute bottom-3 right-3 p-2 rounded-lg transition-colors border ${
+                        isCropped 
+                        ? 'bg-blue-600/20 text-blue-400 border-blue-600/50' 
+                        : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300'
+                      }`}
+                      title="Crop Top Banner (Overscan)"
+                    >
+                      <Scissors size={14} />
+                    </button>
                 </div>
 
                 <button 
