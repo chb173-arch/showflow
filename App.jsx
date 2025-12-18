@@ -6,7 +6,7 @@ import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Tra
  * * DESIGN NOTES:
  * - HOME/DASHBOARD: Split into Preview (Left) and Program (Right).
  * - Workflow: Select Source -> Preview -> GO -> Live.
- * - Monetization: "Free" watermark remains, but Image Upload is unlocked.
+ * - Layout: Forced side-by-side responsive scaling.
  */
 
 const App = () => {
@@ -30,7 +30,7 @@ const App = () => {
 
   // --- PROJECTOR ROUTING ---
   useEffect(() => {
-    const handleHashChange = () => setIsProjector(window.location.hash === '#projector'); 
+    const handleHashChange = () => setIsProjector(window.location.hash === '#projector');
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
@@ -246,17 +246,17 @@ const App = () => {
   // RENDER: DASHBOARD
   // ---------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#121212] text-zinc-100 font-sans">
-      <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#121212] text-zinc-100 font-sans flex flex-col">
+      <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-30 shrink-0">
+        <div className="w-full px-4 lg:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-black italic">SF</div>
-            <h1 className="text-lg font-bold tracking-tight">ShowFlow <span className="text-zinc-500 font-medium text-sm">SaaS Free</span></h1>
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-black italic shrink-0">SF</div>
+            <h1 className="text-lg font-bold tracking-tight hidden sm:block">ShowFlow <span className="text-zinc-500 font-medium text-sm">SaaS Free</span></h1>
           </div>
           <div className="flex items-center gap-4">
             {projectorStatus === 'blocked' && (
               <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-md text-xs font-bold border border-amber-500/20">
-                <ShieldAlert size={14} /> POPUP BLOCKED
+                <ShieldAlert size={14} /> <span className="hidden sm:inline">POPUP BLOCKED</span>
               </div>
             )}
             <button 
@@ -267,7 +267,8 @@ const App = () => {
                 : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'
               }`}
             >
-              {projectorStatus === 'connected' ? 'Projector Active' : 'Open Projector'}
+              <span className="hidden sm:inline">{projectorStatus === 'connected' ? 'Projector Active' : 'Open Projector'}</span>
+              <span className="sm:hidden">Projector</span>
               <ExternalLink size={14} />
             </button>
           </div>
@@ -287,18 +288,19 @@ const App = () => {
         </div>
       )}
 
-      <main className="max-w-[1800px] mx-auto p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-140px)]">
+      {/* Main Content: Forced 2-Column Grid */}
+      <main className="flex-1 p-4 lg:p-6 overflow-hidden">
+        <div className="grid grid-cols-2 gap-4 lg:gap-8 h-full min-h-[400px]">
           
           {/* LEFT COLUMN: PREVIEW & SOURCES */}
-          <div className="flex flex-col gap-4 h-full">
+          <div className="flex flex-col gap-4 h-full min-w-0">
             
             {/* 1. Preview Monitor */}
-            <div className="flex-1 bg-zinc-900 border-2 border-[#34A853] rounded-2xl overflow-hidden relative flex flex-col">
+            <div className="flex-1 bg-zinc-900 border-2 border-[#34A853] rounded-2xl overflow-hidden relative flex flex-col min-h-0">
                <div className="absolute top-4 left-4 z-20 bg-green-600/90 text-white text-xs font-black px-3 py-1 rounded shadow-lg">
                   PREVIEW
                </div>
-               <div className="flex-1 relative bg-black">
+               <div className="flex-1 relative bg-black min-h-0">
                  <video ref={previewRef} autoPlay muted playsInline className="w-full h-full object-contain" />
                  {!previewSourceId && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-700">
@@ -309,15 +311,15 @@ const App = () => {
                </div>
                
                {/* Controls Bar */}
-               <div className="h-16 border-t border-zinc-800 bg-zinc-900 flex items-center justify-between px-6">
+               <div className="h-16 shrink-0 border-t border-zinc-800 bg-zinc-900 flex items-center justify-between px-6">
                   <div className="flex items-center gap-4">
-                     <span className="text-xs font-bold text-zinc-500">{sources.length} Available</span>
+                     <span className="text-xs font-bold text-zinc-500 whitespace-nowrap">{sources.length} Available</span>
                   </div>
 
                   <button 
                     onClick={handleTake}
                     disabled={!previewSourceId}
-                    className={`flex items-center gap-2 px-8 py-2 rounded-lg text-sm font-black tracking-wide uppercase transition-all ${
+                    className={`flex items-center gap-2 px-6 lg:px-8 py-2 rounded-lg text-sm font-black tracking-wide uppercase transition-all whitespace-nowrap ${
                         previewSourceId 
                         ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20 hover:scale-105'
                         : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
@@ -329,12 +331,12 @@ const App = () => {
             </div>
 
             {/* 2. Source Carousel (Gallery) */}
-            <div className="h-32 bg-zinc-950/50 border border-zinc-800 rounded-xl p-3 flex gap-3 overflow-x-auto custom-scrollbar">
+            <div className="h-28 lg:h-32 shrink-0 bg-zinc-950/50 border border-zinc-800 rounded-xl p-3 flex gap-3 overflow-x-auto custom-scrollbar">
                 {sources.map(source => (
                   <div 
                     key={source.id}
                     onClick={() => setPreviewSourceId(source.id)}
-                    className={`flex-shrink-0 w-44 bg-zinc-900 rounded-lg overflow-hidden border-2 cursor-pointer relative group ${
+                    className={`flex-shrink-0 w-32 lg:w-44 bg-zinc-900 rounded-lg overflow-hidden border-2 cursor-pointer relative group ${
                         previewSourceId === source.id ? 'border-green-500' : 'border-zinc-800 hover:border-zinc-600'
                     }`}
                   >
@@ -359,7 +361,7 @@ const App = () => {
                 {/* Add Source Placeholder in Gallery */}
                 <button 
                     onClick={addSource}
-                    className="flex-shrink-0 w-24 bg-zinc-900/50 hover:bg-zinc-800 border-2 border-dashed border-zinc-800 hover:border-zinc-700 rounded-lg flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-zinc-400 transition-all"
+                    className="flex-shrink-0 w-20 lg:w-24 bg-zinc-900/50 hover:bg-zinc-800 border-2 border-dashed border-zinc-800 hover:border-zinc-700 rounded-lg flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-zinc-400 transition-all"
                 >
                     <Plus size={20} />
                     <span className="text-[10px] font-bold">Source</span>
@@ -367,9 +369,9 @@ const App = () => {
             </div>
 
             {/* 3. Standby Image Section */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center justify-between">
+            <div className="shrink-0 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700 flex items-center justify-center relative">
+                    <div className="w-12 h-12 bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700 flex items-center justify-center relative shrink-0">
                         {standbyImage ? (
                             <img src={standbyImage} className="w-full h-full object-cover" alt="Standby" />
                         ) : (
@@ -377,18 +379,18 @@ const App = () => {
                         )}
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-zinc-200">Standby Image</h3>
-                        <p className="text-xs text-zinc-500">Shown when "PANIC" is active</p>
+                        <h3 className="text-sm font-bold text-zinc-200 whitespace-nowrap">Standby Image</h3>
+                        <p className="text-xs text-zinc-500 hidden sm:block">Shown when "PANIC" is active</p>
                     </div>
                 </div>
-                <div className="relative">
+                <div className="relative w-full lg:w-auto">
                     <input 
                         type="file" 
                         accept="image/*" 
                         onChange={handleImageUpload}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    <button className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-zinc-700 transition-colors">
+                    <button className="w-full lg:w-auto flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-zinc-700 transition-colors">
                         <Upload size={12} /> Upload
                     </button>
                 </div>
@@ -396,13 +398,13 @@ const App = () => {
 
           </div>
 
-          {/* RIGHT COLUMN: PROGRAM */}
-          <div className="flex flex-col gap-4 h-full">
-            <div className="flex-1 bg-black border-2 border-[#B90000] rounded-2xl overflow-hidden relative shadow-2xl flex flex-col">
+          {/* RIGHT COLUMN: LIVE PROGRAM */}
+          <div className="flex flex-col gap-4 h-full min-w-0">
+            <div className="flex-1 bg-black border-2 border-[#B90000] rounded-2xl overflow-hidden relative shadow-2xl flex flex-col min-h-0">
                 <div className="absolute top-4 left-4 z-20 bg-red-600/90 text-white text-xs font-black px-3 py-1 rounded shadow-lg">
                     LIVE
                 </div>
-                <div className="flex-1 relative overflow-hidden">
+                <div className="flex-1 relative overflow-hidden min-h-0">
                     <video ref={programRef} autoPlay muted playsInline className="w-full h-full object-contain" />
                     
                     {/* Local Standby Image Preview if Video is Null */}
@@ -413,21 +415,21 @@ const App = () => {
                     {!programSourceId && !standbyImage && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/50">
                             <Monitor size={64} className="text-zinc-700" />
-                            <p className="text-zinc-500 text-sm font-bold mt-2 uppercase tracking-widest">Signal Offline</p>
+                            <p className="text-zinc-500 text-sm font-bold mt-2 uppercase tracking-widest text-center px-4">Signal Offline</p>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Panic & Output Status */}
-            <div className="h-32 grid grid-cols-2 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-center relative group">
+            <div className="h-32 shrink-0 grid grid-cols-2 gap-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 lg:p-6 flex flex-col justify-center relative group min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Output Status</h3>
-                        <div className={`w-2 h-2 rounded-full ${projectorStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-zinc-700'}`} />
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest truncate">Output Status</h3>
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${projectorStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-zinc-700'}`} />
                     </div>
                     <p className="text-sm font-bold truncate">
-                        {projectorStatus === 'connected' ? 'External Display Connected' : 'No Projector Window'}
+                        {projectorStatus === 'connected' ? 'Display Connected' : 'No Projector'}
                     </p>
                     
                     {/* Overscan / Crop Toggle */}
@@ -452,7 +454,7 @@ const App = () => {
                         <Play size={18} className="rotate-90" />
                     </div>
                     <span className="text-sm font-black uppercase tracking-tighter text-red-100">PANIC</span>
-                    <span className="text-[10px] text-zinc-500 mt-0.5 uppercase font-bold">Cut to Standby</span>
+                    <span className="text-[10px] text-zinc-500 mt-0.5 uppercase font-bold text-center">Cut to Standby</span>
                 </button>
             </div>
           </div>
