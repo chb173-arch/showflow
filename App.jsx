@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, X } from 'lucide-react';
+import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, X, Cast } from 'lucide-react';
 
 /**
- * SHOWFLOW SAAS (FREE TIER)
- * * DESIGN NOTES:
- * - HOME/DASHBOARD: Split into Preview (Left) and Program (Right).
- * - Workflow: Select Source -> Preview -> GO -> Live.
- * - Monetization: "Free" watermark remains, but Image Upload is unlocked.
+ * SHOWFLOW SAAS (BETA 1.4)
+ * * FEATURES:
+ * - Google Cast / AirMedia Integration Button
  */
 
 const App = () => {
@@ -14,23 +12,60 @@ const App = () => {
   
   // State
   const [sources, setSources] = useState([]);
-  const [previewSourceId, setPreviewSourceId] = useState(null); // The source in the Left window
-  const [programSourceId, setProgramSourceId] = useState(null); // The source in the Right window (LIVE)
-  const [standbyImage, setStandbyImage] = useState(null); // Data URL for custom image
+  const [previewSourceId, setPreviewSourceId] = useState(null); 
+  const [programSourceId, setProgramSourceId] = useState(null); 
+  const [standbyImage, setStandbyImage] = useState(null); 
   
   const [projectorWindow, setProjectorWindow] = useState(null);
   const [projectorStatus, setProjectorStatus] = useState('disconnected');
   const [errorMessage, setErrorMessage] = useState(null);
+  const [castAvailable, setCastAvailable] = useState(false);
 
   const previewRef = useRef(null);
   const programRef = useRef(null);
 
-  // --- PROJECTOR ROUTING ---
+  // --- INIT & PROJECTOR ROUTING ---
   useEffect(() => {
     const handleHashChange = () => setIsProjector(window.location.hash === '#projector');
     window.addEventListener('hashchange', handleHashChange);
+
+    // Initialize Google Cast API availability check
+    window['__onGCastApiAvailable'] = (isAvailable) => {
+      if (isAvailable) {
+        setCastAvailable(true);
+        // Initialize Cast Context (Standard Receiver)
+        try {
+            window.cast.framework.CastContext.getInstance().setOptions({
+                receiverApplicationId: window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            });
+        } catch (e) {
+            console.error("Cast Init Error", e);
+        }
+      }
+    };
+
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // --- GOOGLE CAST HANDLER ---
+  const handleCast = () => {
+    if (castAvailable && window.cast && window.cast.framework) {
+        // This triggers the native Chrome Cast dialog
+        window.cast.framework.CastContext.getInstance().requestSession()
+            .then((session) => {
+                console.log("Cast Session Started", session);
+            })
+            .catch((err) => {
+                if (err !== 'cancel') {
+                    setErrorMessage("Cast Error: Ensure you are on a secure (HTTPS) connection.");
+                }
+            });
+    } else {
+        // Fallback for browsers without Cast support (Safari/Firefox)
+        alert("To project wirelessly:\n\n1. Open your browser menu.\n2. Select 'Cast', 'AirPlay', or 'Project'.\n3. Choose your device.");
+    }
+  };
 
   // --- SOURCE MANAGEMENT ---
   const addSource = async () => {
@@ -53,10 +88,7 @@ const App = () => {
 
       setSources(prev => [...prev, newSource]);
       
-      // Auto-select as preview if it's the first source
-      if (sources.length === 0) {
-        setPreviewSourceId(newSource.id);
-      }
+      if (sources.length === 0) setPreviewSourceId(newSource.id);
 
       stream.getVideoTracks()[0].onended = () => removeSource(newSource.id);
     } catch (err) {
@@ -90,12 +122,8 @@ const App = () => {
     setProgramSourceId(previewSourceId);
     const source = sources.find(s => s.id === previewSourceId);
     
-    // Update Local Program Monitor
-    if (programRef.current) {
-      programRef.current.srcObject = source ? source.stream : null;
-    }
+    if (programRef.current) programRef.current.srcObject = source ? source.stream : null;
 
-    // Update Remote Projector Video
     if (projectorWindow && !projectorWindow.closed) {
       const remoteVideo = projectorWindow.document.getElementById('projector-video');
       const remoteImg = projectorWindow.document.getElementById('fallback-img');
@@ -103,8 +131,7 @@ const App = () => {
       if (remoteVideo) {
         remoteVideo.srcObject = source ? source.stream : null;
         remoteVideo.classList.remove('hidden');
-        
-        if (remoteImg) remoteImg.style.display = 'none'; // Hide image when video is live
+        if (remoteImg) remoteImg.style.display = 'none'; 
       }
     }
   };
@@ -121,7 +148,6 @@ const App = () => {
         remoteVideo.classList.add('hidden');
         remoteVideo.srcObject = null;
       }
-      // Show fallback image
       if (remoteImg) remoteImg.style.display = 'block';
     }
   };
@@ -134,8 +160,6 @@ const App = () => {
       reader.onload = (e) => {
         const data = e.target.result;
         setStandbyImage(data);
-        
-        // Push to Projector immediately
         if (projectorWindow && !projectorWindow.closed) {
           const remoteImg = projectorWindow.document.getElementById('fallback-img');
           if (remoteImg) remoteImg.src = data;
@@ -152,7 +176,6 @@ const App = () => {
       setProjectorWindow(win);
       setProjectorStatus('connected');
       
-      // Inject current standby image if exists
       win.onload = () => {
         if (standbyImage) {
            const remoteImg = win.document.getElementById('fallback-img');
@@ -215,10 +238,34 @@ const App = () => {
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-30 shrink-0">
         <div className="w-full px-4 lg:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-black italic shrink-0">SF</div>
-            <h1 className="text-lg font-bold tracking-tight hidden sm:block">ShowFlow <span className="text-zinc-500 font-medium text-sm">SaaS Free</span></h1>
+            {/* UPDATED LOGO: Uses img tag. Place 'logo.png' in your /public folder. */}
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-8 h-8 rounded shrink-0 object-contain bg-zinc-800"
+              onError={(e) => {
+                e.target.onerror = null; 
+                e.target.style.display = 'none'; 
+                e.target.nextSibling.style.display = 'flex'; // Show fallback if image fails
+              }}
+            />
+            {/* Fallback "SF" box if image is missing */}
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-black italic shrink-0" style={{display: 'none'}}>SF</div>
+            
+            <h1 className="text-lg font-bold tracking-tight hidden sm:block">ShowFlow <span className="text-zinc-500 font-medium text-sm">Free</span></h1>
           </div>
           <div className="flex items-center gap-4">
+            
+            {/* GOOGLE CAST BUTTON */}
+            <button 
+              onClick={handleCast}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all border border-zinc-700"
+              title="Cast to AirMedia / Chromecast"
+            >
+              <Cast size={16} />
+              <span className="hidden sm:inline">Cast</span>
+            </button>
+
             {projectorStatus === 'blocked' && (
               <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-md text-xs font-bold border border-amber-500/20">
                 <ShieldAlert size={14} /> <span className="hidden sm:inline">POPUP BLOCKED</span>
@@ -232,7 +279,7 @@ const App = () => {
                 : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'
               }`}
             >
-              <span className="hidden sm:inline">{projectorStatus === 'connected' ? 'Projector Active' : 'Open Projector'}</span>
+              <span className="hidden sm:inline">{projectorStatus === 'connected' ? 'Projector Active' : 'Output Window'}</span>
               <span className="sm:hidden">Projector</span>
               <ExternalLink size={14} />
             </button>
@@ -372,12 +419,9 @@ const App = () => {
                 </div>
                 <div className="flex-1 relative overflow-hidden min-h-0">
                     <video ref={programRef} autoPlay muted playsInline className="w-full h-full object-contain" />
-                    
-                    {/* Local Standby Image Preview if Video is Null */}
                     {!programSourceId && standbyImage && (
                         <img src={standbyImage} className="absolute inset-0 w-full h-full object-cover" alt="Program Standby" />
                     )}
-
                     {!programSourceId && !standbyImage && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/50">
                             <Monitor size={64} className="text-zinc-700" />
@@ -425,7 +469,6 @@ const App = () => {
   );
 };
 
-// Helper for carousel thumbnails
 const VideoPreview = ({ stream }) => {
   const videoRef = useRef(null);
   useEffect(() => {
