@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, X, Cast } from 'lucide-react';
+import { Monitor, Plus, Play, ShieldAlert, ExternalLink, Image as ImageIcon, Trash2, ArrowRight, AlertCircle, Upload, X, Cast, Menu } from 'lucide-react';
 
 /**
- * SHOWFLOW SAAS (BETA 1.4)
+ * SHOWFLOW SAAS (BETA 1.5)
  * * FEATURES:
- * - Google Cast / AirMedia Integration Button
+ * - Robust Google Cast / AirMedia Guide
+ * - Removed Crop Tool
+ * - Unlocked Standby Image
  */
 
 const App = () => {
@@ -19,7 +21,9 @@ const App = () => {
   const [projectorWindow, setProjectorWindow] = useState(null);
   const [projectorStatus, setProjectorStatus] = useState('disconnected');
   const [errorMessage, setErrorMessage] = useState(null);
-  const [castAvailable, setCastAvailable] = useState(false);
+  
+  // Cast Guide State
+  const [showCastGuide, setShowCastGuide] = useState(false);
 
   const previewRef = useRef(null);
   const programRef = useRef(null);
@@ -28,43 +32,14 @@ const App = () => {
   useEffect(() => {
     const handleHashChange = () => setIsProjector(window.location.hash === '#projector');
     window.addEventListener('hashchange', handleHashChange);
-
-    // Initialize Google Cast API availability check
-    window['__onGCastApiAvailable'] = (isAvailable) => {
-      if (isAvailable) {
-        setCastAvailable(true);
-        // Initialize Cast Context (Standard Receiver)
-        try {
-            window.cast.framework.CastContext.getInstance().setOptions({
-                receiverApplicationId: window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-            });
-        } catch (e) {
-            console.error("Cast Init Error", e);
-        }
-      }
-    };
-
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // --- GOOGLE CAST HANDLER ---
   const handleCast = () => {
-    if (castAvailable && window.cast && window.cast.framework) {
-        // This triggers the native Chrome Cast dialog
-        window.cast.framework.CastContext.getInstance().requestSession()
-            .then((session) => {
-                console.log("Cast Session Started", session);
-            })
-            .catch((err) => {
-                if (err !== 'cancel') {
-                    setErrorMessage("Cast Error: Ensure you are on a secure (HTTPS) connection.");
-                }
-            });
-    } else {
-        // Fallback for browsers without Cast support (Safari/Firefox)
-        alert("To project wirelessly:\n\n1. Open your browser menu.\n2. Select 'Cast', 'AirPlay', or 'Project'.\n3. Choose your device.");
-    }
+    // Since we cannot programmatically force the browser's "Cast Tab" menu to open
+    // (security restriction), we open a helpful guide pointing the user to it.
+    setShowCastGuide(true);
   };
 
   // --- SOURCE MANAGEMENT ---
@@ -234,11 +209,67 @@ const App = () => {
   // RENDER: DASHBOARD
   // ---------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#121212] text-zinc-100 font-sans flex flex-col">
+    <div className="min-h-screen bg-[#121212] text-zinc-100 font-sans flex flex-col relative">
+      
+      {/* --- CAST GUIDE MODAL --- */}
+      {showCastGuide && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-end p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCastGuide(false)}></div>
+            
+            {/* Modal */}
+            <div className="relative bg-zinc-900 border border-zinc-700 text-zinc-100 p-6 rounded-2xl shadow-2xl max-w-sm mt-16 mr-2 animate-in fade-in slide-in-from-top-4">
+                {/* Arrow pointing to browser menu */}
+                <div className="absolute -top-3 right-8 w-6 h-6 bg-zinc-900 border-t border-l border-zinc-700 rotate-45 transform"></div>
+                
+                <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                        <Cast size={18} className="text-blue-500" /> 
+                        Cast to TV / AirMedia
+                    </h3>
+                    <button onClick={() => setShowCastGuide(false)} className="text-zinc-500 hover:text-white transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                    ShowFlow uses your browser's native mirroring engine to ensure the lowest latency.
+                </p>
+
+                <div className="space-y-4 mb-6">
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-sm shrink-0 border border-zinc-700">1</div>
+                        <div>
+                            <p className="text-sm font-bold text-zinc-200">Open Browser Menu</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">Click the <Menu size={12} className="inline mx-1" /> or <strong>Three Dots</strong> icon in the top-right corner of Chrome/Edge.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-sm shrink-0 border border-zinc-700">2</div>
+                        <div>
+                            <p className="text-sm font-bold text-zinc-200">Select "Cast..."</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">It may be under <strong>"Save and Share"</strong> in newer versions.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-sm shrink-0 border border-zinc-700">3</div>
+                        <div>
+                            <p className="text-sm font-bold text-zinc-200">Choose Device</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">Select your Chromecast, AirMedia, or Smart TV from the list.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onClick={() => setShowCastGuide(false)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition-colors text-sm">
+                    Done
+                </button>
+            </div>
+        </div>
+      )}
+
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-30 shrink-0">
         <div className="w-full px-4 lg:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* UPDATED LOGO: Uses img tag. Place 'logo.png' in your /public folder. */}
             <img 
               src="/logo.png" 
               alt="Logo" 
@@ -246,10 +277,9 @@ const App = () => {
               onError={(e) => {
                 e.target.onerror = null; 
                 e.target.style.display = 'none'; 
-                e.target.nextSibling.style.display = 'flex'; // Show fallback if image fails
+                e.target.nextSibling.style.display = 'flex'; 
               }}
             />
-            {/* Fallback "SF" box if image is missing */}
             <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-black italic shrink-0" style={{display: 'none'}}>SF</div>
             
             <h1 className="text-lg font-bold tracking-tight hidden sm:block">ShowFlow <span className="text-zinc-500 font-medium text-sm">Free</span></h1>
@@ -259,7 +289,11 @@ const App = () => {
             {/* GOOGLE CAST BUTTON */}
             <button 
               onClick={handleCast}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all border border-zinc-700"
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border ${
+                  showCastGuide 
+                  ? 'bg-zinc-800 text-white border-zinc-600' 
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800'
+              }`}
               title="Cast to AirMedia / Chromecast"
             >
               <Cast size={16} />
